@@ -16,7 +16,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
     }).collect::<Vec<_>>();
     let option_fields = fields.named.iter().map(|Field { attrs, vis, ident, ty, .. }| quote! {#(#attrs)* #vis #ident : Option<#ty>}).collect::<Vec<_>>();
-    let move_fields = fields.named.iter().map(|Field { ident, .. }| quote! {#ident: self.#ident.ok_or(Box::<dyn std::error::Error>::from(String::from("None")))}).collect::<Vec<_>>();
+    let move_fields = fields.named.iter().map(|Field { ident, .. }| quote! {#ident: self.#ident.take().ok_or(Box::<dyn std::error::Error>::from(String::from("None")))}).collect::<Vec<_>>();
     let builder_struct_name = format_ident!("{}Builder",&ident);
 
     let expanded = quote! {
@@ -35,7 +35,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         impl #generics #builder_struct_name {
             #(#vis #field_setters)*
 
-            #vis fn build(self)->Result<#ident, Box<dyn std::error::Error>>{
+            #vis fn build(&mut self)->Result<#ident, Box<dyn std::error::Error>>{
                 Ok(#ident{
                     #(#move_fields?),*
                 })
