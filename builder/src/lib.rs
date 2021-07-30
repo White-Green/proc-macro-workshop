@@ -9,7 +9,13 @@ pub fn derive(input: TokenStream) -> TokenStream {
     let data = if let Data::Struct(data) = data { data } else { return TokenStream::new(); };
     let fields = if let Fields::Named(fields) = data.fields { fields } else { return TokenStream::new(); };
     let field_names = fields.named.iter().map(|Field { ident, .. }| quote! {#ident});
-    let fields = fields.named.iter().map(|Field { attrs, vis, ident, ty, .. }| quote! {#(#attrs)* #vis #ident : Option<#ty>});
+    let field_setters = fields.named.iter().map(|Field { ident, ty, .. }| quote! {
+        fn #ident(&mut self, item: #ty)->&mut Self {
+            self.#ident = Some(item);
+            self
+        }
+    });
+    let option_fields = fields.named.iter().map(|Field { attrs, vis, ident, ty, .. }| quote! {#(#attrs)* #vis #ident : Option<#ty>});
     let builder_struct_name = format_ident!("{}Builder",&ident);
 
     let expanded = quote! {
@@ -22,7 +28,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
 
         #vis struct #builder_struct_name #generics {
-            #(#fields),*
+            #(#option_fields),*
+        }
+
+        impl #generics #builder_struct_name {
+            #(#vis #field_setters)*
         }
     };
     TokenStream::from(expanded)
